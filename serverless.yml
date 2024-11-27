@@ -1,0 +1,106 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: inxspin
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: docdb-sls-writer
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: docdb-sls-writer
+
+plugins:
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${param:REGION}
+  memorySize: 256 # Set global memory size
+  timeout: 10 # Set global timeout (default is 6 seconds)
+  vpc:
+    securityGroupIds:
+      - sg-02850da9354ba0076
+    subnetIds:
+      - subnet-08e211844e67d357d
+      - subnet-0125123478487b4a6
+      - subnet-0243a6db189600ca8
+  environment:
+    REGION: ${param:REGION}
+    STAGE: ${param:STAGE}
+    MONGO_URI: ${param:MONGO_URI}
+    DATABASE_NAME: ${param:DATABASE_NAME}
+    NODE_ENV: ${param:NODE_ENV, 'development'}
+
+resources:
+  Resources:
+    InxDocdbLambdaCustomRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: InxDocdbLambdaCustomRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: InxDocdbLambdaCustomPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateNetworkInterface
+                    - ec2:DeleteNetworkInterface
+                    - ec2:DescribeNetworkInterfaces
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - "docdb:*"
+                  Resource: arn:aws:rds:${self:provider.region}:${self:custom.ACCOUNT_ID}:cluster:${self:provider.environment.DATABASE_NAME}
+                - Effect: Allow
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: "arn:aws:logs:${self:provider.region}:${self:custom.ACCOUNT_ID}:*"
+
+functions:
+  addMessage:
+    handler: ./build/handlers/addMessage.addMessage
+    events:
+      - http:
+          path: addMessage
+          method: post
+  updateMessage:
+    handler: ./build/handlers/updateMessage.updateMessage
+    events:
+      - http:
+          path: updateMessage
+          method: put
+  deleteMessage:
+    handler: ./build/handlers/deleteMessage.deleteMessage
+    events:
+      - http:
+          path: deleteMessage
+          method: delete
+  message:
+    handler: ./build/handlers/message.message
+    events:
+      - http:
+          path: message
+          method: get
+  messages:
+    handler: ./build/handlers/messages.messages
+    events:
+      - http:
+          path: messages
+          method: get
+
+
+custom:
+  serverless-offline:
+    httpPort: 6000
+    lambdaPort: 3004
+  OWNER: ${param:OWNER}
+  ACCOUNT_ID: ${param:ACCOUNT_ID}
