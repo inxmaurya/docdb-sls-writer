@@ -1,11 +1,15 @@
 import { MongoClient } from "mongodb";
+import fs from 'fs';
+import path from 'path';
 
-const mongoUri = process.env.MONGO_URI!;
+const firstPartMongoDBUri = process.env.MONGO_URI!;
+
+const mongoUri = `${firstPartMongoDBUri}?tls=true&tlsCAFile=global-bundle.pem&authSource=admin&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
 const dbName = process.env.DATABASE_NAME!;
-const isSSLTLS = process.env.NODE_ENV! === "production" ? true : false;
+const isSSLTLS = process.env.NODE_ENV === "production" || process.env.IS_TLS === "true";
+const caFilePath = path.resolve(__dirname, '../certs/global-bundle.pem');
 
-console.log("mongoUri: " + mongoUri);
-console.log("dbName: " + dbName);
+// Validate environment variables and certificate path
 if (!mongoUri) {
   throw new Error("Environment variable MONGO_URI is required");
 }
@@ -14,18 +18,24 @@ if (!dbName) {
   throw new Error("Environment variable DATABASE_NAME is required");
 }
 
+if (!fs.existsSync(caFilePath)) {
+  throw new Error(`Certificate file not found at ${caFilePath}`);
+}
+
 let client: MongoClient | null = null;
 
 export const getMongoClient = async (): Promise<MongoClient> => {
   if (!client) {
     try {
       client = new MongoClient(mongoUri, {
-        ssl: isSSLTLS,
-        retryWrites: true,
+        tls: isSSLTLS,
+        tlsCAFile: caFilePath,
+        retryWrites: false, // Disable retryable writes
         connectTimeoutMS: 10000,
         authSource: "admin",
       });
       await client.connect();
+      console.log("successfully connected to MongoDB: " + mongoUri);
     } catch (error) {
       console.error("Failed to connect to MongoDB:", error);
       throw new Error("MongoDB connection error");

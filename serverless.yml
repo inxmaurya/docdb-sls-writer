@@ -25,6 +25,7 @@ provider:
     REGION: ${param:REGION}
     STAGE: ${param:STAGE}
     MONGO_URI: ${param:MONGO_URI}
+    MONGO_URI_QUERYSTRING: ${param:MONGO_URI_QUERYSTRING}
     DATABASE_NAME: ${param:DATABASE_NAME}
     NODE_ENV: ${param:NODE_ENV, 'development'}
 
@@ -57,7 +58,7 @@ resources:
                 - Effect: Allow
                   Action:
                     - "docdb:*"
-                  Resource: arn:aws:rds:${self:provider.region}:${self:custom.ACCOUNT_ID}:cluster:${self:provider.environment.DATABASE_NAME}
+                  Resource: arn:aws:rds:ap-south-1:897722688252:cluster:inx-docdb
                 - Effect: Allow
                   Action:
                     - "logs:CreateLogGroup"
@@ -104,3 +105,8 @@ custom:
     lambdaPort: 3004
   OWNER: ${param:OWNER}
   ACCOUNT_ID: ${param:ACCOUNT_ID}
+
+
+package:
+  include:
+    - certs/global-bundle.pem

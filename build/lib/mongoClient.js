@@ -8,31 +8,42 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.closeMongoClient = exports.getDatabase = exports.getMongoClient = void 0;
 const mongodb_1 = require("mongodb");
-const mongoUri = process.env.MONGO_URI;
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+const firstPartMongoDBUri = process.env.MONGO_URI;
+const mongoUri = `${firstPartMongoDBUri}?tls=true&tlsCAFile=global-bundle.pem&authSource=admin&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
 const dbName = process.env.DATABASE_NAME;
-const isSSLTLS = process.env.NODE_ENV === "production" ? true : false;
-console.log("mongoUri: " + mongoUri);
-console.log("dbName: " + dbName);
+const isSSLTLS = process.env.NODE_ENV === "production" || process.env.IS_TLS === "true";
+const caFilePath = path_1.default.resolve(__dirname, '../certs/global-bundle.pem');
+// Validate environment variables and certificate path
 if (!mongoUri) {
     throw new Error("Environment variable MONGO_URI is required");
 }
 if (!dbName) {
     throw new Error("Environment variable DATABASE_NAME is required");
 }
+if (!fs_1.default.existsSync(caFilePath)) {
+    throw new Error(`Certificate file not found at ${caFilePath}`);
+}
 let client = null;
 const getMongoClient = () => __awaiter(void 0, void 0, void 0, function* () {
     if (!client) {
         try {
             client = new mongodb_1.MongoClient(mongoUri, {
-                ssl: isSSLTLS,
-                retryWrites: true,
+                tls: isSSLTLS,
+                tlsCAFile: caFilePath,
+                retryWrites: false, // Disable retryable writes
                 connectTimeoutMS: 10000,
                 authSource: "admin",
             });
             yield client.connect();
+            console.log("successfully connected to MongoDB: " + mongoUri);
         }
         catch (error) {
             console.error("Failed to connect to MongoDB:", error);
